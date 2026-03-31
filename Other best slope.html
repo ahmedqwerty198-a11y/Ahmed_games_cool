@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Slope Clone 2D-Iso</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #0f0; font-size: 24px; text-shadow: 0 0 10px #0f0; }
+        #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #0f0; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">SCORE: <span id="score">0</span></div>
+    <div id="msg"><h1>GAME OVER</h1><p>Appuie sur ESPACE pour recommencer</p></div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score");
+const msg = document.getElementById("msg");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let gameActive = true;
+let speed = 5;
+
+const player = {
+    x: canvas.width / 2,
+    y: canvas.height - 150,
+    radius: 15,
+    vx: 0,
+    color: "#0f0"
+};
+
+let obstacles = [];
+
+// Contrôles
+window.addEventListener("keydown", (e) => {
+    if (e.code === "ArrowLeft") player.vx = -7;
+    if (e.code === "ArrowRight") player.vx = 7;
+    if (e.code === "Space" && !gameActive) resetGame();
+});
+
+window.addEventListener("keyup", (e) => {
+    if (e.code === "ArrowLeft" || e.code === "ArrowRight") player.vx = 0;
+});
+
+function spawnObstacle() {
+    if (!gameActive) return;
+    const w = 40 + Math.random() * 60;
+    const x = Math.random() * (canvas.width - w);
+    obstacles.push({ x: x, y: -50, w: w, h: 20 });
+    
+    // Fréquence d'apparition accélérée par le score
+    setTimeout(spawnObstacle, Math.max(300, 1000 - score * 5));
+}
+
+function resetGame() {
+    score = 0;
+    speed = 5;
+    obstacles = [];
+    player.x = canvas.width / 2;
+    gameActive = true;
+    msg.style.display = "none";
+    scoreEl.innerText = score;
+}
+
+function update() {
+    if (gameActive) {
+        player.x += player.vx;
+
+        // Limites de l'écran
+        if (player.x < 0) player.x = 0;
+        if (player.x > canvas.width) player.x = canvas.width;
+
+        obstacles.forEach((obs, index) => {
+            obs.y += speed;
+
+            // Collision simple
+            if (player.x + player.radius > obs.x && 
+                player.x - player.radius < obs.x + obs.w &&
+                player.y + player.radius > obs.y && 
+                player.y - player.radius < obs.y + obs.h) {
+                gameActive = false;
+                msg.style.display = "block";
+            }
+
+            // Supprimer obstacles hors écran et augmenter score
+            if (obs.y > canvas.height) {
+                obstacles.splice(index, 1);
+                score++;
+                scoreEl.innerText = score;
+                speed += 0.05; // Accélération progressive
+            }
+        });
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    // Fond avec effet de vitesse
+    ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Lignes de perspective (effet tunnel)
+    ctx.strokeStyle = "#003300";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < canvas.width; i += 100) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+    }
+
+    // Dessiner obstacles
+    ctx.fillStyle = "#ff0000";
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "#ff0000";
+    obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+    });
+
+    // Dessiner Joueur (Balle néon)
+    ctx.fillStyle = player.color;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#0f0";
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0; // Reset pour le reste
+}
+
+spawnObstacle();
+update();
+</script>
+</body>
+</html>

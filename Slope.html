@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Slope Clone 2D-Iso</title>
+    <style>
+        body { margin: 0; background: #000; color: #0f0; font-family: 'Courier New', Courier, monospace; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { border: 2px solid #0f0; background: #050505; }
+        #ui { position: absolute; top: 20px; text-align: center; width: 100%; pointer-events: none; }
+        .score { font-size: 30px; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div class="score">SCORE: <span id="scoreVal">0</span></div>
+        <div style="font-size: 14px;">Utilisez les FLÈCHES GAUCHE / DROITE</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+const scoreElt = document.getElementById("scoreVal");
+
+canvas.width = 400;
+canvas.height = 600;
+
+// Paramètres du jeu
+let score = 0;
+let speed = 5;
+let ball = { x: 200, y: 450, radius: 12, vx: 0 };
+let obstacles = [];
+let gameRunning = true;
+
+// Contrôles
+const keys = {};
+window.onkeydown = (e) => keys[e.code] = true;
+window.onkeyup = (e) => keys[e.code] = false;
+
+function spawnObstacle() {
+    const size = 40;
+    // On génère des obstacles sur 3 colonnes virtuelles
+    const lanes = [50, 150, 250, 350];
+    const x = lanes[Math.floor(Math.random() * lanes.length)] - 20;
+    obstacles.push({ x: x, y: -50, w: size, h: size });
+}
+
+function update() {
+    if (!gameRunning) return;
+
+    // Déplacement latéral fluide
+    if (keys["ArrowLeft"] && ball.x > ball.radius) ball.vx -= 0.8;
+    if (keys["ArrowRight"] && ball.x < canvas.width - ball.radius) ball.vx += 0.8;
+    
+    ball.vx *= 0.92; // Friction pour le contrôle
+    ball.x += ball.vx;
+
+    // Limites de l'écran
+    if (ball.x < ball.radius) ball.x = ball.radius;
+    if (ball.x > canvas.width - ball.radius) ball.x = canvas.width - ball.radius;
+
+    // Vitesse augmente avec le temps
+    speed += 0.002;
+    score += 0.1;
+    scoreElt.innerText = Math.floor(score);
+
+    // Gérer les obstacles
+    if (Math.random() < 0.03) spawnObstacle();
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        let obs = obstacles[i];
+        obs.y += speed;
+
+        // Collision
+        let dx = ball.x - Math.max(obs.x, Math.min(ball.x, obs.x + obs.w));
+        let dy = ball.y - Math.max(obs.y, Math.min(ball.y, obs.y + obs.h));
+        if ((dx * dx + dy * dy) < (ball.radius * ball.radius)) {
+            gameRunning = false;
+            alert("GAME OVER ! Score : " + Math.floor(score));
+            location.reload();
+        }
+
+        // Supprimer si hors écran
+        if (obs.y > canvas.height) obstacles.splice(i, 1);
+    }
+
+    draw();
+    requestAnimationFrame(update);
+}
+
+function draw() {
+    // Effet de traînée néon
+    ctx.fillStyle = "rgba(0, 10, 0, 0.3)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Dessiner les lignes de perspective (l'effet de pente)
+    ctx.strokeStyle = "#030";
+    ctx.lineWidth = 2;
+    for(let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * 100, 0);
+        ctx.lineTo(i * 100, canvas.height);
+        ctx.stroke();
+    }
+
+    // Dessiner les obstacles (Cubes rouges néon)
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "red";
+    ctx.fillStyle = "#ff4444";
+    obstacles.forEach(obs => {
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+    });
+
+    // Dessiner la balle (Verte néon)
+    ctx.shadowColor = "#0f0";
+    ctx.fillStyle = "#0f0";
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+}
+
+update();
+</script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2D Runner - Pure Gameplay</title>
+    <style>
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Arial Black', sans-serif; touch-action: none; }
+        canvas { background: #111; border: 3px solid #00ffff; box-shadow: 0 0 30px rgba(0,255,255,0.2); max-width: 100vw; max-height: 90vh; transition: border-color 0.2s; }
+        #ui { position: absolute; top: 10px; color: #fff; font-size: 24px; text-transform: uppercase; text-align: center; width: 100%; pointer-events: none; }
+        
+        @keyframes danger-blink {
+            0% { border-color: #ff0000; box-shadow: 0 0 40px #ff0000; }
+            50% { border-color: #ffffff; box-shadow: 0 0 10px #ffffff; }
+            100% { border-color: #ff0000; box-shadow: 0 0 40px #ff0000; }
+        }
+        .danger-mode { animation: danger-blink 0.5s infinite; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        Score: <span id="score">0</span>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreElement = document.getElementById("score");
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        const lanes = [66, 200, 333]; 
+        let currentLane = 1;
+        let score = 0;
+        
+        let gameSpeed = 10; 
+        const maxSpeed = 15;
+        const acceleration = 0.1; 
+        const spawnRate = 600;
+        let isGameOver = false;
+
+        const player = { x: lanes[currentLane], y: 500, width: 40, height: 60, color: "#00FF00" };
+        let obstacles = [];
+
+        function spawnObstacle() {
+            if (isGameOver) return;
+            let possibleLanes = [0, 1, 2];
+            let lanesToSpawn = [];
+
+            if (score >= 50) {
+                canvas.classList.add('danger-mode');
+                scoreElement.parentElement.style.color = "#ff0000";
+                if (Math.random() > 0.5) {
+                    const first = Math.floor(Math.random() * 3);
+                    lanesToSpawn.push(possibleLanes[first]);
+                    possibleLanes.splice(first, 1);
+                    lanesToSpawn.push(possibleLanes[Math.floor(Math.random() * 2)]);
+                } else lanesToSpawn.push(Math.floor(Math.random() * 3));
+            } else lanesToSpawn.push(Math.floor(Math.random() * 3));
+
+            lanesToSpawn.forEach(laneIndex => {
+                obstacles.push({ x: lanes[laneIndex] - 22, y: -100, width: 44, height: 44, color: "#ff0000" });
+            });
+        }
+        setInterval(spawnObstacle, spawnRate);
+
+        // CONTROLS
+        const move = (dir) => {
+            if (isGameOver) { location.reload(); return; }
+            if (dir === 'left' && currentLane > 0) currentLane--;
+            if (dir === 'right' && currentLane < 2) currentLane++;
+        };
+
+        window.addEventListener("touchstart", (e) => {
+            move(e.touches[0].clientX < window.innerWidth / 2 ? 'left' : 'right');
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") move('left');
+            if (e.key === "ArrowRight") move('right');
+            if (isGameOver && (e.key === " " || e.key === "Enter")) location.reload();
+        });
+
+        function update() {
+            if (isGameOver) return;
+            player.x += (lanes[currentLane] - player.width / 2 - player.x) * 0.4; 
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].y += gameSpeed;
+                if (player.x < obstacles[i].x + obstacles[i].width &&
+                    player.x + player.width > obstacles[i].x &&
+                    player.y < obstacles[i].y + obstacles[i].height &&
+                    player.y + player.height > obstacles[i].y) {
+                    isGameOver = true;
+                }
+                if (obstacles[i].y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    score++;
+                    scoreElement.innerText = score;
+                    if (gameSpeed < maxSpeed) {
+                        gameSpeed += acceleration;
+                        if (gameSpeed > maxSpeed) gameSpeed = maxSpeed;
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = "#111"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#222"; ctx.lineWidth = 2; ctx.beginPath();
+            ctx.moveTo(133, 0); ctx.lineTo(133, canvas.height);
+            ctx.moveTo(266, 0); ctx.lineTo(266, canvas.height); ctx.stroke();
+
+            ctx.shadowBlur = 15; ctx.shadowColor = "#00ffff";
+            ctx.fillStyle = player.color; ctx.fillRect(player.x, player.y, player.width, player.height);
+            ctx.shadowColor = "#ff0000";
+            obstacles.forEach(obs => { ctx.fillStyle = obs.color; ctx.fillRect(obs.x, obs.y, obs.width, obs.height); });
+            ctx.shadowBlur = 0;
+
+            if (isGameOver) {
+                ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = "center"; ctx.fillStyle = "#ff0000"; ctx.font = "bold 40px Arial";
+                ctx.fillText("CRASH !", canvas.width/2, canvas.height/2 - 20);
+                ctx.fillStyle = "white"; ctx.font = "24px Arial";
+                ctx.fillText("SCORE: " + score, canvas.width/2, canvas.height/2 + 30);
+                ctx.fillStyle = "#00ffff"; ctx.font = "16px Arial";
+                ctx.fillText("TAP TO RESTART", canvas.width/2, canvas.height/2 + 80);
+            }
+            requestAnimationFrame(() => { update(); draw(); });
+        }
+        draw();
+    </script>
+</body>
+</html>
